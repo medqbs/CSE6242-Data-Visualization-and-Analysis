@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Q5 - Interactive</title>
+<script type="text/javascript" src="https://d3js.org/d3.v3.min.js"></script>
+<style type="text/css">
+        div {
+            font-family: sans-serif;
+        }
+
+        .div1 { /* For placing the main bar chart */
+            float:left;
+            width:70%;
+        }
+
+        .div2 { /* For placing the smaller window with line chart */
+            float:right;
+            width:30%;
+        }
+
+        .bar {
+            fill: #B2B0AF; /* Bar: gray */
+        }
+
+        .bar:hover {
+            fill: #03EDFC; /* Hover over: blue */
+        }
+
+        path { 
+            stroke: steelblue;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: black;
+        }
+
+        .axis text {
+            font-size: 11px;
+            fill: black;
+        }
+
+        .main text {
+            font-family: monospace;
+            font-size: 13px;
+            fill: #B2B0AF;
+        }
+
+        .main path,
+        .main line{
+            fill: none;
+            stroke: none;
+        }
+
+        .label {
+            fill: white;
+            font-size: 10px;
+            font-family: monospace;
+        }
+</style>
+</head>
+<body>
+    <script type="text/javascript">
+        var data = [
+            {city: 'San Antonio', population_2012: 1383505, growth: {year_2013:25405, year_2014:26644 , year_2015:28593 , year_2016:23591 , year_2017:24208}},
+            {city: 'New York', population_2012: 8383504, growth: {year_2013:75138 , year_2014:62493 , year_2015:61324 , year_2016:32967 , year_2017:7272}},
+            {city: 'Chicago', population_2012: 2717989, growth: {year_2013:6493 , year_2014:2051 , year_2015:-1379 , year_2016:-4879 , year_2017:-3825}},
+            {city: 'Los Angeles', population_2012: 3859267, growth:{year_2013:32516 , year_2014:30885 , year_2015:30791 , year_2016:27657 , year_2017:18643}},
+            {city: 'Phoenix', population_2012: 1495880, growth: {year_2013:25302 , year_2014:26547 , year_2015:27310 , year_2016:27003 , year_2017:24036}}
+        ];
+
+        // Process Data
+        var data_2017 = [];
+        var growth = {};
+
+        data.forEach(function(d){
+            growth[d.city] = [];
+            data_2017.push({"city": d.city, "popu": d.population_2012});
+            for(var i = 2013; i < 2018; i++){
+                var curr_label = "year_" + i;
+                growth[d.city].push([i, d.growth[curr_label]*100/data_2017[data_2017.length-1].popu]);
+                data_2017[data_2017.length-1].popu = data_2017[data_2017.length-1].popu + d.growth[curr_label];
+            }
+        });
+
+        console.log(data_2017);
+        console.log(growth);
+
+        var margin = {
+            top: 20, right: 20, bottom: 20, left: 100
+        };
+
+        var width = 700 - margin.left - margin.right,
+            height = 300 - margin.top - margin.bottom;
+
+        // Add div1 for placing the main SVG
+        d3.select("body").append("div").attr("class","div1").attr("id","bar-div");
+
+        // Add div2 for placing the smaller window line chart
+        d3.select("body").append("div").attr("class","div2").attr("id","line-div");
+
+        var svg = d3.select("#bar-div").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom);
+
+        // Sort population
+        data_sorted = data_2017.sort(function(a, b){ return b.popu - a.popu; })
+
+        // Define x,y scale 
+        var x = d3.scale.linear()
+            .domain([0, d3.max(data_sorted, function (d){ return d.popu; })])
+            .range([0, width]);
+
+        var y = d3.scale.ordinal()
+            .domain(data_sorted.map(function(d){ return d.city; }).reverse())
+            .rangeRoundBands([height, 0], 0.2);
+
+        // Bar chart, we don't really have an x-axis
+        var yAxis = d3.svg.axis().scale(y).tickSize(0).orient("left");
+
+        // Add y axis
+        svg.append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+            .attr("class", "main axis")
+            .call(yAxis);
+
+        svg.append("g").attr("id","forBars")
+           .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        // Formatting Numbers
+        var format = d3.format(",");
+
+        // Add bars
+        svg.select("#forBars").selectAll(".bar")
+            .data(data_sorted)
+            .enter()
+            .append("rect")
+            .attr("class", "bar")
+            .attr("y", function (d){ return y(d.city); })
+            .attr("height", y.rangeBand())
+            .attr("x", 10) // So that y-label and bars are separate
+            .attr("width", function (d){ return x(d.popu); })
+            .on("mouseover", function (d){ hover(growth, d.city); }) // Show line chart on the right
+            .on("mouseout", function (d){ d3.select(".div2").select("#svg-line").remove(); }); // Clear chart
+
+        // add number labels on the bar
+        d3.select("#forBars").selectAll(".label").data(data_sorted)
+             .enter()
+             .append("text")
+             .attr("class", "label")
+             .attr("y", function (d) { return y(d.city) + y.rangeBand() / 2 + 3.5; })
+             .attr("x", 15)
+             .text(function (d) { return format(d.popu); });
+
+        //d3.select("#line-div").append("h3").text("This is a test");
+
+        // Hover action - define as function
+        function hover(growth, city) {
+           margin_line = { top: 50, right: 20, bottom: 50, left: 30 };
+
+            w = 250 - margin_line.left - margin_line.right,
+            h = 250 - margin_line.top - margin_line.bottom;
+
+            var svg2 = d3.select(".div2").append("svg").attr("id","svg-line")
+                        .attr("width", w + margin_line.left + margin_line.right)
+                        .attr("height", h + margin_line.top + margin_line.bottom);
+
+            var years = [2013, 2014, 2015, 2016, 2017];
+
+            var data = growth[city];
+
+            var y2 = d3.scale.linear().domain([d3.min(data, function(d){ return d[1]; }), d3.max(data, function(d){ return d[1]; })])
+                       .range([h, 0]);
+
+            var x2 = d3.scale.linear().domain([2013, 2017])
+                       .range([0, w]);
+
+            var yAxis2 = d3.svg.axis()
+                               .scale(y2)
+                               .ticks(6)
+                               .orient("left");
+
+            var xAxis2 = d3.svg.axis()
+                               .scale(x2)
+                               .tickValues(years)
+                               .orient("bottom")
+                               .tickFormat(function(d){ return parseInt(d) });
+
+            // Add x and y axis
+            svg2.append("g")
+                .attr("transform", "translate(" + margin_line.left + "," + margin_line.top + ")")
+                .attr("class", "axis")
+                .call(yAxis2)
+                .append("text")
+                .attr("x", 0)
+                .attr("y", -5)
+                .style("text-anchor", "end")
+                .text("Pct %");
+
+            svg2.append("g")
+                .attr("transform", "translate(" + margin_line.left + "," + (h + margin_line.top) + ")")
+                .attr("class", "axis")
+                .call(xAxis2)
+                .append("text")
+                //.attr("class", "label")
+                .attr("x", w+15)
+                .attr("y", 30)
+                .style("text-anchor", "end")
+                .text("Year");
+
+            var line = d3.svg.line()
+                        .x(function(d) { return x2(d[0]); })
+                        .y(function(d) { return y2(d[1]); });
+
+            // Add line
+            svg2.append("g").attr("transform", "translate(" + margin_line.left + "," + margin_line.top + ")")
+                .append("path")
+                .attr("class", "line")
+                .attr("d", line(data));
+        }
+    </script>
+</body>
+</html>

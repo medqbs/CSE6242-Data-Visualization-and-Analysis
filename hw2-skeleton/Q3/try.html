@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8">
+<title>Number of Ratings 2016-2020</title>
+<script type="text/javascript" src="https://d3js.org/d3.v5.min.js"></script>
+<style>
+  path {
+fill: none;
+stroke: #020202;
+}
+.axis line{
+stroke: #706f6f;
+stroke-width: 0.5;
+shape-rendering: crispEdges;
+}
+
+/* axis contour */
+.axis path {
+stroke: #706f6f;
+stroke-width: 0.7;
+shape-rendering: crispEdges;
+}
+
+/* axis text */
+.axis text {
+fill: #2b2929;
+font-family: Georgia;
+font-size: 120%;
+}
+</style>
+</head>
+<body>
+<div id="container" class="svg-container"></div>
+<script>
+//------------------------1. PREPARATION-------------------------//
+//-----------------------------SVG-------------------------------//
+var margin = {top: 20, right: 100, bottom: 30, left: 50},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+var colorArray = [d3.schemeCategory10, d3.schemeAccent];
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+var colorScheme = d3.scaleOrdinal(colorArray[0]);
+//-----------------------------DATA------------------------------//
+const parseTime = d3.timeParse("%Y-%m-%d");
+
+var x = d3.scaleTime().range([0, width]);
+var y = d3.scaleLinear().range([height, 0]);
+
+const dataset = d3.csv("boardgame_ratings.csv");
+dataset.then(function(data) {
+    data.forEach(function(d) {
+      d.date = parseTime(d.date);
+        d["Catancount"] = +d["Catan=count"];
+        d["Catanrank"] = +d["Catan=rank"];
+        d["Codenamescount"] = +d["Codenames=count"];
+        d["Codenamesrank"] = +d["Codenames=rank"];
+        d["Dixitcount"] = +d["Dixit=count"];
+        d["Dixitrank"] = +d["Dixit=rank"];
+        d["Dominioncount"] = +d["Dominion=count"];
+        d["Dominionrank"] = +d["Dominion=rank"];
+        d["Gloomhavencount"] = +d["Gloomhaven=count"];
+        d["Gloomhavenrank"] = +d["Gloomhaven=rank"];
+        d["Magiccount"] = +d["Magic: The Gathering=count"];
+        d["Magicrank"] = +d["Magic: The Gathering=rank"];
+        d["Monopolycount"] = +d["Monopoly=count"];
+        d["Monopolyrank"] = +d["Monopoly=rank"];
+        d["Terracount"] = +d["Terraforming Mars=count"];
+        d["Terrarank"] = +d["Terraforming Mars=rank"];
+    });
+    x.domain(d3.extent(data, function(d) { return d.date; }));
+    y.domain([0, d3.max(data, function(d) {
+	  return Math.max(d["Catancount"], d["Codenamescount"], d["Dixitcount"], d["Dominioncount"],d["Gloomhavencount"], d["Magiccount"], d["Monopolycount"], d["Terracount"]);
+    })]);
+    var valueline1 = d3.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d["Catancount"]); });
+    var valueline2 = d3.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d["Codenamescount"]); });
+    var valueline3 = d3.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d["Dixitcount"]); });
+    var valueline4 = d3.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d["Dominioncount"]); });
+    var valueline5 = d3.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d["Gloomhavencount"]); });
+    var valueline6 = d3.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d["Magiccount"]); });
+    var valueline7 = d3.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d["Monopolycount"]); });
+    var valueline8 = d3.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d["Terracount"]); });
+
+    svg.append("path")
+      .data([data])
+      .attr("class", "line")
+      .attr("d", valueline1)
+      .attr("fill", function(d){return d.color;});
+    
+      svg.append("path")
+      .data([data])
+      .attr("class", "line")
+      .style("stroke", "red")
+      .attr("d", valueline2);
+      svg.append("path")
+      .data([data])
+      .attr("class", "line")
+      .attr("d", valueline3);
+
+      svg.append("path")
+      .data([data])
+      .attr("class", "line")
+      .attr("d", valueline4);
+
+      svg.append("path")
+      .data([data])
+      .attr("class", "line")
+      .attr("d", valueline5);
+
+      svg.append("path")
+      .data([data])
+      .attr("class", "line")
+      .attr("d", valueline6);
+
+      svg.append("path")
+      .data([data])
+      .attr("class", "line")
+      .attr("d", valueline7);
+      svg.append("path")
+      .data([data])
+      .attr("class", "line")
+      .attr("d", valueline8);
+
+    var yaxis = d3.axisLeft().scale(y);
+    var xaxis = d3.axisBottom().ticks(d3.timeMonth.every(3)).tickFormat(d3.timeFormat("%b %y")).scale(x);
+
+      svg.append("g")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(x))
+      .call(xaxis);
+      svg.append("text")
+        .attr("id", "x label")
+        .attr("text-anchor", "end")
+        .attr("x", width)
+        .attr("y", height - 6)
+        .text("Month");
+
+  // Add the Y Axis
+        svg.append("g")
+            .call(d3.axisLeft(y))
+            .call(yaxis);
+        svg.append("text")
+            .attr("id", "y label")
+            .attr("text-anchor", "end")
+            .attr("y", 6)
+            .attr("dy", ".75em")
+            .attr("transform", "rotate(-90)")
+            .text("Num of Ratings");
+        svg.append("text")
+		.attr("transform", "translate(" + (width+3) + "," + y(data[0]["Catancount"]) + ")")
+		.attr("dy", ".35em")
+		.attr("text-anchor", "start")
+		.style("fill", "red")
+		.text("Catan");
+        svg.append("text")
+		.attr("transform", "translate(" + (width+3) + "," + y(data[1]["Codenamescount"]) + ")")
+		.attr("dy", ".35em")
+		.attr("text-anchor", "start")
+		.style("fill", "red")
+		.text("Codenames");
+        svg.append("text")
+		.attr("transform", "translate(" + (width+3) + "," + y(data[2]["Dixitcount"]) + ")")
+		.attr("dy", ".35em")
+		.attr("text-anchor", "start")
+		.style("fill", "red")
+		.text("Dixit");        
+        svg.append("text")
+		.attr("transform", "translate(" + (width+3) + "," + y(data[3]["Dominioncount"]) + ")")
+		.attr("dy", ".35em")
+		.attr("text-anchor", "start")
+		.style("fill", "red")
+		.text("Dominion");        
+        svg.append("text")
+		.attr("transform", "translate(" + (width+3) + "," + y(data[4]["Gloomhavencount"]) + ")")
+		.attr("dy", ".35em")
+		.attr("text-anchor", "start")
+		.style("fill", "red")
+		.text("Gloomhaven");        
+        svg.append("text")
+		.attr("transform", "translate(" + (width+3) + "," + y(data[5]["Magiccount"]) + ")")
+		.attr("dy", ".35em")
+		.attr("text-anchor", "start")
+		.style("fill", "red")
+		.text("Magic");
+        svg.append("text")
+		.attr("transform", "translate(" + (width+3) + "," + y(data[6]["Monopolycount"]) + ")")
+		.attr("dy", ".35em")
+		.attr("text-anchor", "start")
+		.style("fill", "red")
+		.text("Monopoly");
+        svg.append("text")
+		.attr("transform", "translate(" + (width+3) + "," + y(data[7]["Terracount"]) + ")")
+		.attr("dy", ".35em")
+		.attr("text-anchor", "start")
+		.style("fill", "red")
+		.text("Terra");
+        
+});
+</script>

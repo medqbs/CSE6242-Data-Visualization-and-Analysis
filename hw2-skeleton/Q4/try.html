@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<head>
+  <title>Games Rating: 2015 - 2019</title>
+    <meta charset="utf-8">
+    <script type="text/javascript" src="../lib/d3.v5.min.js"></script>
+    <script type="text/javascript" src="../lib/d3-dsv.min.js"></script>
+    <style>
+      .line {
+        fill: none;
+        stroke-width: 2px;
+      }
+    </style>
+  </head>
+  
+  <body></body>
+  
+  </script>
+  <script>
+    var margin = {top: 100, right: 20, bottom: 50, left: 100},
+      width = 960 - margin.left - margin.right,
+      height = 500 - margin.top - margin.bottom;
+  
+    var colorArray = [d3.schemeCategory10][0]
+  
+    var x = d3.scaleLinear().range([0, width]);
+    var y = d3.scaleLinear().range([height, 0]);
+  
+    var svg = d3.select("body").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom + 50)
+      .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+  
+        
+  d3.csv("average-rating.csv").then(function(data) {
+  
+  
+  // group the data: I want to draw one line per group (year)
+  var dataAgg = d3.nest() // nest function allows to group the calculation per level of a factor
+          .key(function(d) { return d.year;})
+          .key(function(d) { return Math.floor(d.average_rating); })
+          .rollup(function(leaves) { return leaves.length })
+          .entries(data)
+          .map(function (obj) {
+           if (obj.values.length < 8) {
+               if (obj.values[0]["0"] == undefined) {
+                   obj.values.unshift({ key: "0", values: 0 });
+               }
+               if (obj.values[0]["1"] == undefined) {
+                   obj.values.unshift({ key: "1", values: 0 });
+               }
+               if (obj.values[0]["2"] == undefined) {
+                   obj.values.unshift({ key: "2", values: 0 });
+               }
+               if (obj.values[0]["3"] == undefined) {
+                   obj.values.unshift({ key: "3", values: 0 });
+               }
+               if (obj.values[0]["4"] == undefined) {
+                   obj.values.unshift({ key: "4", values: 0 });
+               }
+               if (obj.values[0]["5"] == undefined) {
+                   obj.values.unshift({ key: "5", values: 0 });
+               }
+               if (obj.values[0]["6"] == undefined) {
+                   obj.values.unshift({ key: "6", values: 0 });
+               }
+               if (obj.values[0]["7"] == undefined) {
+                   obj.values.unshift({ key: "7", values: 0 });
+               }
+               if (obj.values[0]["8"] == undefined) {
+                   obj.values.unshift({ key: "8", values: 0 });
+               }
+               
+           }
+           return obj;
+      });
+  console.log("Nested_data",dataAgg);  
+  // returns the first slice
+  
+  
+    var valueline = d3.line()
+      .x(function(d) { return x(d.key); })
+      .y(function(d) { return y(d.value); });
+  
+      x.domain([0, d3.max(dataAgg.map(d => d.values).flat(), v => v.key)]);
+    y.domain([0, d3.max(dataAgg.map(d => d.values).flat(), v => v.value)]);
+    for (i = 0; i < dataAgg.length; i++) {
+      yData = dataAgg[i].values
+      yData.sort(function(a, b) { return +a.key  - +b.key })
+      color = colorArray[i]
+  
+      svg.append("path")
+          .data([yData])
+          .attr("class", "line")
+          .attr("d", valueline)
+          .attr('stroke', color)
+      
+          svg.selectAll(".dot")
+              .data([yData])
+              .enter().append("circle") // Uses the enter().append() method
+              .attr("class", "dot") // Assign a class for styling
+              .attr("cx", function(d) { return x(d.key);})
+              .attr("cy", function(d) { return y(+d.values);})
+              .attr("r", 6)
+              .attr('stroke', color);
+
+    }
+
+  
+    svg.append("g")
+        .attr("transform", "translate(0," + height + ")")
+        .call(d3.axisBottom(x));
+  
+    svg.append("g")
+        .call(d3.axisLeft(y));
+  
+  });
+  </script>

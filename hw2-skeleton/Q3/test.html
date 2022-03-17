@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8">
+<title>Multi Line Chart</title>
+<script type="text/javascript" src="https://d3js.org/d3.v5.min.js"></script>
+<style>
+  path {
+fill: none;
+stroke: #ed3700;
+}
+.axis line{
+stroke: #706f6f;
+stroke-width: 0.5;
+shape-rendering: crispEdges;
+}
+
+/* axis contour */
+.axis path {
+stroke: #706f6f;
+stroke-width: 0.7;
+shape-rendering: crispEdges;
+}
+
+/* axis text */
+.axis text {
+fill: #2b2929;
+font-family: Georgia;
+font-size: 120%;
+}
+</style>
+</head>
+<body>
+<div id="container" class="svg-container"></div>
+<script>
+//------------------------1. PREPARATION-------------------------//
+//-----------------------------SVG-------------------------------//
+var margin = {top: 100, right: 200, bottom: 30, left: 50},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+var colorArray = [d3.schemeCategory10, d3.schemeAccent];
+var svg = d3.select("body").append("svg")
+    .attr("id", "svg-a")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+var colorScheme = d3.scaleOrdinal(colorArray[0]);
+
+//-----------------------------DATA------------------------------//
+const timeConv = d3.timeParse("%Y-%m-%d");
+const dataset = d3.csv("boardgame_ratings.csv");
+dataset.then(function(data) {
+
+    const slices = data.columns.slice(1).filter(function(key){return key == "Catan=count"|| key == "Codenames=count"|| 
+    key == "Dixit=count"|| key == "Dominion=count"|| key == "Gloomhaven=count"|| key == "Magic: The Gathering=count"|| key == "Monopoly=count"
+    || key == "Terraforming Mars=count"}).map(function(id) {
+        return {
+            id: id,
+            values: data.map(function(d){
+                return {
+                    date: timeConv(d.date),
+                    measurement: +d[id]
+                };
+
+            })
+        };
+    });
+    console.log("Column headers", data.columns);
+console.log("Column headers without date", data.columns.slice(1));
+// returns the sliced dataset
+console.log("Slices",slices);  
+// returns the first slice
+console.log("First slice",slices[0]);
+// returns the array in the first slice
+console.log("A array",slices[0].values);   
+// returns the date of the first row in the first slice
+console.log("Date element",slices[0].values[0].date);  
+// returns the array's length
+console.log("Array length",(slices[0].values).length);
+//----------------------------SCALES-----------------------------//
+const xScale = d3.scaleTime().range([0,width]);
+const yScale = d3.scaleLinear().rangeRound([height, 0]);
+xScale.domain(d3.extent(data, function(d){
+    return timeConv(d.date)}));
+yScale.domain([(0), d3.max(slices, function(c) {
+    return d3.max(c.values, function(d) {
+        return d.measurement + 4; });
+        })
+    ]);
+var z = d3.scaleOrdinal(d3.schemeCategory10);
+//-----------------------------AXES------------------------------//
+
+var yaxis = d3.axisLeft().scale(yScale);
+var xaxis = d3.axisBottom().ticks(d3.timeMonth.every(3)).tickFormat(d3.timeFormat("%b %y")).scale(xScale);
+
+
+//----------------------------LINES------------------------------//
+const line = d3.line()
+    .x(function(d) { return xScale(d.date); })
+    .y(function(d) { return yScale(d.measurement); });
+//-------------------------2. DRAWING----------------------------//
+
+//-----------------------------AXES------------------------------//
+svg.append("g")
+    .attr("id", "x-axis-a")
+    .attr("class", "axis")
+    .attr("transform", "translate(0," + height + ")")
+    .call(xaxis);
+    svg.append("text")
+        .attr("id", "x-axis-a")
+        .attr("text-anchor", "end")
+        .attr("x", width)
+        .attr("y", height - 6)
+        .text("Month");
+
+//this you had
+svg.append("g")
+    .attr("id", "y-axis-a")
+    .attr("class", "axis")
+    .call(yaxis)
+//this you append
+    svg.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("dy", ".75em")
+    .attr("y", 6)
+    .style("text-anchor", "end")
+    .text("Number of Ratings");
+//----------------------------LINES------------------------------//
+const lines = svg.selectAll("lines")
+    .data(slices)
+    .enter()
+    .append("g")
+    .attr("id", "plot-a");
+
+    lines.append("path")
+    .attr("id", "lines-a")
+    .attr("d", function(d) { return line(d.values); })
+    .style("stroke", function(d) { return z(d.id); });
+    lines.append("text")
+    .attr("class","serie_label")
+    .datum(function(d) {
+        return {
+            id: d.id,
+            value: d.values[d.values.length - 1]}; })
+    .attr("transform", function(d) {
+            return "translate(" + (xScale(d.value.date) + 10)  
+            + "," + (yScale(d.value.measurement) + 5 ) + ")";})
+    .attr("x", 5)
+    .text(function(d) { return d.id.slice(0, -6); })//////change "=count"
+    .style("stroke", function(d) { return z(d.id); });
+
+    svg.append("text")
+        .attr("id", "title-a")
+        .attr("x", (width / 2))             
+        .attr("y", 0 - (margin.top / 2))
+        .attr("text-anchor", "middle")
+        .text("Multi Line Chart");
+});
+</script>

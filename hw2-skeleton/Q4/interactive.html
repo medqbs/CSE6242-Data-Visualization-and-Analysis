@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<head>
+  <title>Games rating: 2015 - 2019</title>
+    <meta charset="utf-8">
+    <script type="text/javascript" src="../lib/d3.v5.min.js"></script>
+    <script type="text/javascript" src="../lib/d3-dsv.min.js"></script>
+    <style>
+              div {
+            font-family: sans-serif;
+        }
+
+        .div1 { /* For placing the main bar chart */
+            float:left;
+            width:70%;
+        }
+
+        .div2 { /* For placing the smaller window with line chart */
+            float:right;
+            width:30%;
+        }
+
+        .bar {
+            fill: #B2B0AF; /* Bar: gray */
+        }
+
+        .bar:hover {
+            fill: #03EDFC; /* Hover over: blue */
+        }
+      .line {
+        fill: none;
+        stroke-width: 2px;
+      
+      }
+      .grid line {
+  stroke: lightgrey;
+  stroke-opacity: 0.7;
+  shape-rendering: crispEdges;
+}
+
+.grid path {
+  stroke-width: 0;
+}
+    </style>
+  </head>
+  
+  <body></body>
+  
+  </script>
+  <script>
+var margin = {top: 100, right: 20, bottom: 50, left: 100},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+  
+    var colorArray = [d3.schemeCategory10][0]
+    var z = d3.scaleOrdinal(d3.schemeCategory10);
+  
+    var x = d3.scaleLinear().range([0, width]);
+    var y = d3.scaleLinear().range([height, 0]);
+  
+    var svg = d3.select("body").append("svg") 
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom+50)
+    .append("g")
+    .attr("id", "line_chart_title")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")")
+    svg.append("text")
+    .attr("id", "line_chart_title")
+        .attr("x", (width / 2))             
+        .attr("y", 0 - (margin.top / 2))
+        .attr("text-anchor", "middle")
+        .text("Board games by Rating 2015-2019");
+  d3.csv("average-rating.csv").then(function(data) {
+  
+  
+  // group the data: I want to draw one line per group (year)
+  var data0 = d3.nest() // nest function allows to group the calculation per level of a factor
+          .key(function(d) { return  d.year;})
+          .key(function(d) { return Math.floor(d.average_rating); })
+          .rollup(function(leaves) { return leaves.length })
+          .entries(data);
+        
+  //console.log("Nested_data",data0);  
+
+ var empIds = ["2015", "2016", "2017", "2018", "2019"]
+var dataAgg = data0.filter(function(itm){
+  return empIds.indexOf(itm.key) > -1;
+});
+var rat =  ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+for (i = 0; i < dataAgg.length; i++) { //go thro 0-4 for 2015-2019 years
+    //for (k = 0; k < dataAgg[i].values.length; k++) {
+      var exist = []
+      for (k = 0; k < dataAgg[i].values.length; k++) {
+        exist.push(dataAgg[i].values[k].key)
+      }
+      for (j = 0; j < rat.length; j++) { //
+ var key = rat[j]
+        if (!exist.includes(key)){
+ dataAgg[i].values.push({"key":key, "value": 0})
+        }
+}
+}
+
+
+//console.log("filtered",dataAgg);
+  // returns the first slice
+  
+  var lines0 = d3.select("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom+50)
+    .append("g")
+    .attr("id", "lines")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+  
+    const cir = d3.select("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom+50)
+            .append("g")
+            .attr("id", "circles")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")").selectAll("circle");
+    var valueline = d3.line()
+      .x(function(d) { return x(d.key); })
+      .y(function(d) { return y(d.value); });
+
+      x.domain([0, d3.max(dataAgg.map(d => d.values).flat(), v => v.key)]);
+    y.domain([0, d3.max(dataAgg.map(d => d.values).flat(), v => v.value)]);
+
+
+    for (i = 0; i < dataAgg.length; i++) {
+      yData = dataAgg[i].values
+      yData.sort(function(a, b) { return +a.key  - +b.key })
+      color = colorArray[i]
+  
+      var lines = lines0.append("path")
+          .data([yData])
+          .attr("class", "line")
+          .attr("d", valueline)
+          .attr('stroke', color)
+          var yDataAgg = []
+          for (p = 0; p < yData.length; p++) {
+            yData[p] = Object.assign({yearidx: i}, yData[p])
+            yDataAgg.push(yData[p])
+          }
+          //console.log("Try",yDataAgg);  
+
+            for (j = 0; j < yData.length; j++) {
+              var yr = empIds[i];
+              cir.data([yDataAgg[j]])
+              .enter().append("circle") // Uses the enter().append() method
+              .attr("id", function (d){ return yr + d.key })
+              .attr("class", "dot") // Assign a class for styling
+              .attr("cx", (d) => x(d.key))
+              .attr("cy", (d) => y(d.value))
+              .attr("r", 4)
+              .attr('fill', color)
+              .on("mouseover", function (d){ hover(d.yearidx, d.key); d3.select(this).attr("r", 8);  }) // Show line chart on the right
+            .on("mouseout", function (d){ d3.select(this).attr("r", 4);
+            d3.select("body").select("#barchart").remove() }); // Clear chart
+              
+            }
+            
+
+    }
+
+    d3.select("svg")
+    .append("g")
+    .attr("id", "x-axis-lines")
+        .attr("transform", "translate(100," + 450+ ")")
+        .call(d3.axisBottom(x))
+        .call(d3.axisBottom(x))
+
+        d3.select("svg").append("text")
+        .attr("id", "x-axis-a")
+        .attr("text-anchor", "end")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")")
+        .attr("x", width)
+        .attr("y", height - 6)
+        .text("Rating");;
+  
+    d3.select("svg")
+    .append("g")
+    .attr("id", "y-axis-lines")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")")
+        .call(d3.axisLeft(y))
+      d3.select("svg").append("text")
+      .attr("id", "y-axis-a")
+    .attr("transform",
+          "translate(" + margin.left + "," + 90 + ")")
+      .attr("dy", ".75em")
+      .attr("y", 6)
+      .style("text-anchor", "end")
+      .text("Count");;
+
+      const leg = d3.select("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom+50)
+            .append("g")
+            .attr("id", "legend")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")")
+      leg.append("circle").attr("cx",200).attr("cy",130).attr("r", 4).style("fill", z("2015"))
+leg.append("circle").attr("cx",200).attr("cy",150).attr("r", 4).style("fill", z("2016"))
+leg.append("circle").attr("cx",200).attr("cy",170).attr("r", 4).style("fill", z("2017"))
+leg.append("circle").attr("cx",200).attr("cy",190).attr("r", 4).style("fill", z("2018"))
+leg.append("circle").attr("cx",200).attr("cy",210).attr("r", 4).style("fill", z("2019"))
+
+leg.append("text").attr("x", 220).attr("y", 130).text("2015").style("font-size", "15px").attr("alignment-baseline","middle")
+leg.append("text").attr("x", 220).attr("y", 150).text("2016").style("font-size", "15px").attr("alignment-baseline","middle")
+leg.append("text").attr("x", 220).attr("y", 170).text("2017").style("font-size", "15px").attr("alignment-baseline","middle")
+leg.append("text").attr("x", 220).attr("y", 190).text("2018").style("font-size", "15px").attr("alignment-baseline","middle")
+leg.append("text").attr("x", 220).attr("y", 210).text("2019").style("font-size", "15px").attr("alignment-baseline","middle")
+
+const cr = d3.select("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom+50)
+            .append("g")
+            .attr("id", "credit")
+    .attr("id", "credit")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")")
+          cr.append("text")
+        .attr("x", (width / 2))             
+        .attr("y", 0 - (margin.top / 2)+30)
+        .text("zyang363").style("font-size", "15px").attr("alignment-baseline","middle")
+
+
+
+    var data1 = d3.nest() // nest function allows to group the calculation per level of a factor
+          .key(function(d) { return  d.year;})
+          .key(function(d) { return Math.floor(d.average_rating); })
+          .entries(data);
+
+
+var dataAgg1 = data1.filter(function(itm){
+  return empIds.indexOf(itm.key) > -1;
+});
+
+
+for (i = 0; i < dataAgg1.length; i++) { //go thro 0-4 for 2015-2019 years
+    //for (k = 0; k < dataAgg[i].values.length; k++) {
+      var exist = []
+      for (k = 0; k < dataAgg1[i].values.length; k++) {
+        exist.push(dataAgg1[i].values[k].key)
+      }
+      for (j = 0; j < rat.length; j++) { //
+ var key = rat[j]
+        if (!exist.includes(key)){
+ dataAgg1[i].values.push({"key":key, "value": []})
+        }
+}
+}
+ for (i = 0; i < dataAgg1.length; i++) { //for each year
+
+      for (j = 0; j < dataAgg1[i].values.length; j++) { //for each rating
+        if((!dataAgg1[i].values[j].values==[])){
+        dataAgg1[i].values[j].values = dataAgg1[i].values[j].values.slice(0, 5)
+        for (k = 0; k < dataAgg1[i].values[j].values.length; k++) { //for each name
+          if(dataAgg1[i].values[j].values[k].name.length>10){
+            dataAgg1[i].values[j].values[k].name = dataAgg1[i].values[j].values[k].name.slice(0, 10)
+          }
+}
+}
+        dataAgg1[i].values.sort(function(first, second) {
+ return first.key - second.key;
+});
+            
+      }
+    }
+    
+    console.log("1",dataAgg1);  
+
+    //================================SVG2================================//
+function hover(yearidx, rate){
+  var data2 = dataAgg1[yearidx]
+    console.log("data2",data2);  
+
+
+if(!data2.values[rate].values == []){
+  var margin = {top: 20, right: 30, bottom: 40, left: 250},
+        w = 700 - margin.left - margin.right,
+        h = 400 - margin.top - margin.bottom;
+  var svg2 = d3.select("body").append("svg")
+  .attr("id","barchart")
+  .attr("width", w + margin.left + margin.right)
+      .attr("height", h + margin.top + margin.bottom)
+  .append("g")
+  .attr("id","barchart")
+  .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+
+
+  var names = []
+  for (i = 0; i < data2.values[rate].values.length; i++) {
+    names.push(data2.values[rate].values[i].name)
+  }
+  const names1 = names.reverse()
+    var y2 = d3.scaleBand().domain(names)
+                       .range([h, 0])
+                       .padding(.1);;///Maybe Wrong!!!!!
+ var limx = data2.values[rate].values[0].users_rated
+
+ var x2 = d3.scaleLinear()
+            .domain([0, limx])
+            .range([0, w]);
+         
+
+    // gridlines in x axis function
+function make_x_gridlines() {		
+    return d3.axisBottom(x2)
+        .ticks(7)
+}
+
+var title1 =  "Top 5 Most Rated Games of "+empIds[yearidx] + " with Rating "+rat[rate]
+
+d3.select("body").select("#barchart").append("g")
+      .attr("id", "bar_chart_title")
+        .attr("transform",
+              "translate(" + margin.left + "," + margin.top + ")")
+      .append("text")
+        .attr("x", (w / 2))             
+        .attr("y", 0 - (margin.top / 2)+5)
+        .attr("text-anchor", "middle")
+        .text(title1);
+console.log("title1",title1);  
+d3.select("body").select("#barchart").append("g")			
+      .attr("class", "grid")
+      .attr("transform", "translate("+margin.left +",360" + ")")
+      .call(make_x_gridlines()
+          .tickSize(-height)
+          .tickFormat("")
+      )
+
+      d3.select("body").select("#barchart").append("g")
+    .attr("id", "x-axis-bars")
+    .attr("transform", "translate("+margin.left+",360" + ")")
+    .call(d3.axisBottom(x2))
+    .selectAll("text")
+      .attr("transform", "translate(0,10)rotate(0)")
+      .style("text-anchor", "end");
+
+  d3.select("body").select("#barchart").append("text")
+        .attr("id", "bar_x_axis_label")
+        .attr("text-anchor", "end")
+    .attr("transform",
+          "translate(250, 0)")
+        .attr("x", w)
+        .attr("y", h - 6)
+        .text("Number of users");
+
+d3.select("body").select("#barchart")
+.append("g").attr("class", "axis")
+    .attr("id", "y-axis-bars")
+    .attr("transform", "translate("+margin.left+","+margin.top + ")")
+                .call(d3.axisLeft(y2))
+                .append("text")
+                .attr("x", 0)
+                .attr("y", -5)
+                .style("text-anchor", "end")
+                .text("Pct %");
+d3.select("body").select("#barchart").append("text")
+      .attr("id", "bar_y_axis_label")
+    .attr("transform",
+          "translate(240"  + ",20" + ")")
+      .attr("dy", ".75em")
+      .attr("y", 6)
+      .style("text-anchor", "end")
+      .text("Games");;
+    
+///Bars:
+d3.select("body").select("#barchart").append("g")
+    .attr("id", "bars")
+    .selectAll("myRect")
+    .data(data2.values[rate].values)
+    .enter()
+    .append("rect")
+    .attr("transform", "translate("+margin.left+"," +margin.top+ ")")
+    .attr("x", x2(0) )
+    .attr("y", function(d) { return y2(d.name); })
+    .attr("width", function(d) { return x2(d.users_rated); })
+    .attr("height", y2.bandwidth() )
+    .attr("fill", "#69b3a2")
+    }else{return null}
+  }
+  });
+
+
+
+  </script>

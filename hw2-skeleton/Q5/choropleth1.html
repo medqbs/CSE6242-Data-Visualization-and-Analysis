@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+    <!-- add title -->
+
+    <!-- import required libraries here -->
+    <script type="text/javascript" src="./lib/d3.v5.min.js"></script>
+    <script src="./lib/d3-tip.min.js"></script>
+    <script src="./lib/d3-legend.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <script src="https://d3js.org/d3-geo-projection.v2.min.js"></script>
+    <script src="https://d3js.org/topojson.v2.min.js"></script>
+    <style>
+        /* define CSS rules here */
+    continent {
+    fill: #f0e4dd;
+    stroke: #e09292;
+    stroke-width: 0.5;
+}
+        .d3-tip {
+  line-height: 1;
+  padding: 12px;
+  background: rgba(43,43,43, 0.8);
+  color: #fff;
+  border-radius: 2px;
+            pointer-events: none !important;
+}
+
+    </style>
+
+    <title></title>
+</head>
+
+
+<body>
+    <!-- Add heading for the visualization -->
+
+    <!-- Create dropdown element here. Options should be added after reading in game file, they should not be created here.-->
+    <select id="gameDropdown"></select>
+
+    <!-- append visualization svg to this div-->
+
+
+    <script>
+
+        // enter code to define margin and dimensions for svg
+        var margin = {top: 20, right: 50, bottom: 30, left: 30},
+        width = 960 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+        var svg = d3.select("body").append("svg").attr("id","choropleth")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height+ margin.top + margin.bottom).classed("svg-content", true);
+        svg.append("text")
+        .attr("id", "title")
+        .attr("x", (width / 2)-200)
+        .attr("y", 0 - (margin.top / 2)+30)
+        .attr("text-anchor", "middle")
+        .text("Average Rating of Board Games Across the World");
+
+
+        // enter code to create svg
+
+
+        // enter code to create color scale
+
+        // enter code to define tooltip
+
+        // enter code to define projection and path required for Choropleth
+        // For grading, set the name of functions for projection and path as "projection" and "path"
+        var projection = d3.geoNaturalEarth()
+          .center([0,20])
+          .translate([width / 2, height / 2])
+        var path = d3.geoPath().projection(projection);
+
+         var world = d3.json("world_countries.json");
+        var gameData = d3.csv("ratings-by-country.csv");
+
+        // define any other global variables
+
+        var promises = [
+            d3.json("world_countries.json"),
+            d3.csv("ratings-by-country.csv")
+        ]
+        Promise.all(promises).then(
+                ready
+        );
+
+        // this function should be called once the data from files have been read
+        // world: topojson from world_countries.json
+        // gameData: data from ratings-by-country.csv
+        function ready([world, gameData]) {
+            var grouped_data = d3.nest().key(function(d){return d.Game}).entries(gameData)
+            grouped_data.sort(function(x, y){
+               return x.key.localeCompare(y.key);
+            })
+            world.features.sort(function(x, y){
+               return x.properties.name.localeCompare(y.properties.name);
+            })
+            console.log("grouped data", grouped_data)
+            console.log("world",world)
+            console.log("gameData", gameData)
+
+            var grouped_n = [];
+            for (k=0; k<grouped_data[0].values.length;k++){
+                const r = grouped_data[0].values[k]["Country"];
+                    const t = +grouped_data[0].values[k]["Average Rating"];
+                    const u = +grouped_data[0].values[k]["Number of Users"];
+                grouped_n.push({country:r,rating:t, users:u})
+            }
+            grouped_n.sort(function(x, y){
+               return x.country.localeCompare(y.country);
+            })
+            //colorScale
+            console.log(d3.max(grouped_n, function(c) {return +c.rating;}))
+            var colorScale = d3.scaleQuantile().domain([d3.min(grouped_n, function(c) {return +c.rating;}), d3.max(grouped_n, function(c) {return +c.rating;})])
+            .range(["lightsalmon", "salmon", "indianred","firebrick"]);
+            console.log("grouped_n", grouped_n)
+
+            //tooltip
+            var tip = d3.tip()
+              .attr('class', 'd3-tip').attr("id","tooltip")
+              .offset([70, 30])
+              .html(function(d) {
+                  var found = 0;
+                  //console.log(d.properties.name)
+                    for (i =0; i< grouped_n.length;i++){
+                        if (grouped_n[i].country == d.properties.name) {
+                            //console.log(grouped_n[0])
+                            if (grouped_n[i].country) {
+                                found = 1
+                                //console.log(grouped_n[i].country);
+                                return "Country: "+grouped_n[i].country + "<br/>Game: 6 nimmt!"+"<br/>Avg Rating: " + grouped_n[i].rating+ "<br/>Number of Users: " + grouped_n[i].users;
+                            }
+                        else {
+                                //console.log("N/A", d);
+                                return d.properties.name + ": No data.";
+                            }
+                        }
+                  }
+                    if (found ==0){
+                        return "Country: "+ d.properties.name + "<br/>Game: 6 nimmt!"+"<br/>Avg Rating: N/A"+ "<br/>Number of Users: N/A";
+                    }
+              })
+
+            svg.call(tip);
+
+            countries = svg.append("g").attr("id","countries")
+              .attr("class", "countries")
+            .selectAll("path")
+            .data(world.features)
+            .enter().append("path")
+              .attr("d", path)
+                .style("fill", "gray")
+            .on('mouseover', function(d){
+                var x = d3.event.x,
+                    y = d3.event.y;
+
+                tip2.show(d);
+
+                tip2.style('top', y-10 + 'px'); // edited
+                tip2.style('left', x+'px'); // edited
+              })
+            .on("mouseout", tip.hide);
+            var count = 0;
+            countries
+            .style("fill", function (d){
+                if(count<grouped_n.length){
+                    if (grouped_n[count].country == d.properties.name) {
+                        count += 1
+                        //console.log(d.properties.name)
+                        return colorScale(grouped_n[count-1].rating)
+
+                    }
+                }
+                else {
+                    return "#aaa";
+                }
+                return "#aaa"
+
+            })
+            //.style("fill",function (d){
+              //  for (i =0; i= d.length;i++){
+                //    if (grouped_n[0].country == d[i].properties.name) {
+                  //      console.log(grouped_n[0])
+                    //    return grouped_n[0].color
+                   // }
+                     //   }})
+
+            var select = d3.select("#gameDropdown")
+                .attr("class","select").attr("id","gameDropdown").on("change",onchange)
+                 // text showed in the menu
+
+            var options = select
+                .selectAll("option")
+                .attr("id","option")
+            .data(grouped_data)
+              .enter()
+                .append('option')
+              .text(function (d) { return d.key; })
+            .attr("value",function (d) { return d.key; })
+            // enter code to extract all unique games from gameData
+
+
+            // enter code to append the game options to the dropdown
+            function onchange() {
+                // recover the option that has been chosen
+
+                var selectedOption = this.value
+                //console.log(selectedOption)
+                var selected
+                for (k=0; k<grouped_data.length;k++){
+                    if (grouped_data[k].key == selectedOption) {
+                        selected = grouped_data[k]
+                    }
+                };
+                // run the updateChart function with this selected option
+                createMapAndLegend(world, gameData,selected.values,this.value)
+
+
+
+            }
+            //
+
+            // event listener for the dropdown. Update choropleth and legend when selection changes. Call createMapAndLegend() with required arguments.
+
+            // create Choropleth with default option. Call createMapAndLegend() with required arguments.
+        }
+
+        // this function should create a Choropleth and legend using the world and gameData arguments for a selectedGame
+        // also use this function to update Choropleth and legend when a different game is selected from the dropdown
+        function createMapAndLegend(world, gameData, selectedGame){
+            d3.select('body').selectAll('div.d3-tip').remove();
+
+            console.log(selectedGame[0].Game)
+            ran = []
+            var grouped_n = [];
+            for (k=0; k<selectedGame.length;k++){
+                const r = selectedGame[k]["Country"];
+                    const t = +selectedGame[k]["Average Rating"];
+                    const u = +selectedGame[k]["Number of Users"];
+                grouped_n.push({country:r,rating:t, users:u})
+                ran.push(+selectedGame[k]["Average Rating"])
+            }
+            grouped_n.sort(function(x, y){
+               return x.country.localeCompare(y.country);
+            })
+            console.log(ran)
+
+            const f = d3.format(".1f");
+            //var colorScale = d3.scaleQuantile().domain([d3.min(grouped_n, function(c) {return +c.rating;}), d3.max(grouped_n, function(c) {return +c.rating;})])
+                var colorScale = d3.scaleQuantile().domain(ran)
+            .range(["lightsalmon", "salmon", "indianred","firebrick"]);
+            var count =0
+            countries
+            .style("fill", function (d){
+                if(count<grouped_n.length){
+                    if (grouped_n[count].country == d.properties.name) {
+                        count += 1
+                        //console.log(d.properties.name)
+                        return colorScale(+grouped_n[count-1].rating)
+
+                    }
+                }
+                else {
+                    return "#aaa";
+                }
+                return "#aaa"
+
+            })
+
+            var tip2 = d3.tip()
+              .attr('class', 'd3-tip').attr("id","tooltip")
+              .offset([70, 30])
+              .html(function(d) {
+                  var found = 0;
+                  //console.log(d.properties.name)
+                    for (i =0; i< grouped_n.length;i++){
+                        if (grouped_n[i].country == d.properties.name) {
+                            //console.log(grouped_n[0])
+                            if (grouped_n[i].country) {
+                                found = 1
+                                //console.log(grouped_n[i].country);
+                                return "Country: "+"<a>"+grouped_n[i].country+"</a>" + "<a><br/>Game: </a>"+"<a>"+selectedGame[0].Game+"</a>"+"<a><br/>Avg Rating: </a>" + grouped_n[i].rating+ "<a><br/>Number of Users: </a>" + grouped_n[i].users;
+                            }
+                        else {
+                                //console.log("N/A", d);
+                                return d.properties.name + ": No data.";
+                            }
+                        }
+                  }
+                    if (found ==0){
+                        return "<a>Country: </a>"+ "<a>"+d.properties.name + "</a>"+"<br/>Game: "+selectedGame[0].Game+"<br/>Avg Rating: N/A"+ "<br/>Number of Users: N/A";
+                    }
+              })
+
+            svg.call(tip2);
+            countries
+            .on('mouseover', function(d){
+    var x = d3.event.x,
+        y = d3.event.y;
+
+    tip2.show(d);
+
+    tip2.style('top', y-10 + 'px'); // edited
+    tip2.style('left', x+'px'); // edited
+  })
+            .on("mouseout", tip2.hide);
+
+        }
+    </script>
+
+</body>
+
+</html>

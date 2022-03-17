@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script type="text/javascript" src="../lib/d3.v5.min.js"></script>
+<style>
+
+path.link {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1.5px;
+}
+
+path.link.graysolid {
+    fill: none;
+    stroke: #666;
+    stroke-width: 3px;
+}
+
+path.link.greendash {
+    fill: none;
+    stroke: #00ff2a;
+    stroke-width: 1.5px;
+    stroke-dasharray: 5,5,5,5,5,5;
+}
+
+circle {
+  fill: #ccc;
+  stroke: #fff;
+  stroke: black;
+  stroke-width: 1.5px;
+}
+
+text {
+  fill: #000;
+  font: 10px sans-serif;
+  pointer-events: none;
+}
+
+</style>
+<head>
+<title></title></head>
+<body>
+<script>
+
+d3.dsv(",", "board_games.csv", function(d) {
+  return {
+    source: d.source,
+    target: d.target,
+    value: +d.value
+  }
+}).then(function(data) {
+
+  var links = data;
+
+  var nodes = {};
+
+  // compute the distinct nodes from the links.
+  links.forEach(function(link) {
+      link.source = nodes[link.source] || (nodes[link.source] = {name: link.source});
+      link.target = nodes[link.target] || (nodes[link.target] = {name: link.target});
+  });
+//// Change Link Style
+// asign a type per value to encode opacity
+    links.forEach(function(link) {
+	    if (link.value == 0) {
+		    link.type = "graysolid";
+	    } else if (link.value == 1) {
+		    link.type = "greendash";
+	    }
+    });
+  var width = 1200,
+      height = 700;
+
+    var color = d3.scaleOrdinal(d3.schemeCategory20);
+
+  var force = d3.forceSimulation()
+      .nodes(d3.values(nodes))
+      .force("link", d3.forceLink(links).distance(100))
+      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force("x", d3.forceX())
+      .force("y", d3.forceY())
+      .force("charge", d3.forceManyBody().strength(-250))
+      .alphaTarget(1)
+      .on("tick", tick);
+
+
+
+  var svg = d3.select("body").append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+  // add the links
+  var path = svg.append("g")
+      .selectAll("path")
+      .data(links)
+      .enter()
+      .append("path")
+      .attr("class", function(d) { return "link " + d.type; });
+
+  // define the nodes
+  var node = svg.selectAll(".node")
+      .data(force.nodes())
+      .enter().append("g")
+      .attr("class", "node")
+      .on("click", click)
+      .on("dblclick", dblclick)
+      .call(d3.drag()
+          .on("start", dragstarted)
+          .on("drag", dragged)
+          .on("end", dragended));
+
+    // Add degree 
+    d3.selectAll('g.node')
+    .each(function(d) {
+        d.degree = 0;
+    });
+
+    // Calculate degree
+    links.forEach(function(d){
+        d.source.degree += 1;
+        d.target.degree += 1;
+    });
+    // Accessor functions to get min & max
+var minDegree = d3.min(
+  d3.values(nodes), function(d) {
+    return d.degree; })
+
+var maxDegree = d3.max(
+  d3.values(nodes), function(d) { 
+    return d.degree; })
+
+// Create node scale based on degree
+var nodescale = d3.scaleSqrt()
+  .domain( [minDegree, maxDegree] )
+  .range( [3, 30] ); // Change this to your desired range
+
+  var color = d3.scaleLinear()
+  .domain([1, 20])
+    .range(["lightblue", "midnightblue"]);
+  // add the nodes //////Changing Size based on degree
+  node.append("circle")
+      .attr("id", function(d){
+         return (d.name.replace(/\s+/g,'').toLowerCase());
+      })
+      //.attr("r", function(d, i) { return degreeSize(d.degree); });
+      .attr("r", function(d) {
+      return nodescale(d.degree)
+    })
+      .style("fill", function(d) { return color(d.degree) })
+ //// Node Labeling
+    node.append("text")
+    .attr("x", 6)
+    .attr("y", -10)
+    .text(function(d) { return d.name });
+    var credit = "zyang363"
+    svg.append("text")
+            .attr("id", "credit")
+            .text(credit)
+            .attr("x", width/2+400)
+            .attr("y", height/2-300);
+  // add the curvy lines
+  function tick() {
+      path.attr("d", function(d) {
+          var dx = d.target.x - d.source.x,
+              dy = d.target.y - d.source.y,
+              dr = Math.sqrt(dx * dx + dy * dy);
+          return "M" +
+              d.source.x + "," +
+              d.source.y + "A" +
+              dr + "," + dr + " 0 0,1 " +
+              d.target.x + "," +
+              d.target.y;
+      });
+
+      node.attr("transform", function(d) {
+          return "translate(" + d.x + "," + d.y + ")"; 
+      });
+  };
+// action to take on mouse click
+function click() {
+    d3.select(this).select("text").transition()
+        .duration(750)
+        .attr("x", 22)
+        .style("stroke", "lightsteelblue")
+        .style("stroke-width", ".5px")
+        .style("font", "20px sans-serif");
+    d3.select(this).select("circle").transition()
+        .duration(750)
+        .style("fill", "magenta");
+}
+ 
+// action to take on mouse double click
+function dblclick(d) {
+    d3.select(this).select("circle").transition()
+        .duration(750)
+        .style("fill", function(d) { return color(d.degree) });
+    d3.select(this).select("text").transition()
+        .duration(750)
+        .attr("x", 12)
+        .style("stroke", "none")
+        .style("fill", "black")
+        .style("stroke", "none")
+        .style("font", "10px sans-serif");
+    delete d.fx;
+    delete d.fy;
+    d3.select(this).classed("fixed", d.fixed = false)
+    force.alpha(0.3).restart()
+
+}
+ 
+
+  function dragstarted(d) {
+      if (!d3.event.active) force.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+      d3.select(this).select("circle").transition()
+        .duration(750)
+        .style("fill", "magenta");
+      d3.select(this).select("text").transition()
+        .duration(750)
+        .attr("x", 22);
+  };
+
+  function dragged(d) {
+      d.fx = d3.event.x;
+      d.fy = d3.event.y;
+  };
+
+  function dragended(d) {
+      if (!d3.event.active) force.alphaTarget(0);
+      if (d.fixed == true) {
+          d.fx = x;
+          d.fy = y;
+      }
+      else {
+          d.fx = d3.event.x;
+          d.fy = d3.event.y;
+      }
+  };
+  
+}).catch(function(error) {
+  console.log(error);
+});
+
+</script>
+</body>
+</html>
